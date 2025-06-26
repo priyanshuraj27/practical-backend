@@ -1,13 +1,17 @@
 import os
 import google.generativeai as genai
-from dotenv import load_dotenv
 import json
 import re
 
-load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+api_key = os.getenv("GEMINI_API_KEY")
 
-model = genai.GenerativeModel("gemini-2.0-flash")
+if not api_key:
+    raise ValueError("❌ Environment variable GEMINI_API_KEY not set!")
+
+genai.configure(api_key=api_key)
+
+
+model = genai.GenerativeModel("models/gemini-2.0-flash")
 
 async def explain_term(term: str) -> dict:
     prompt = (
@@ -20,16 +24,18 @@ async def explain_term(term: str) -> dict:
         f"  \"example\": \"...\"\n"
         f"}}"
     )
-    response = model.generate_content(prompt)
-    text = response.text.strip()
-
-    # Remove ```json or ``` blocks if Gemini includes them
-    json_cleaned = re.sub(r"```json|```", "", text).strip()
 
     try:
-        return json.loads(json_cleaned)
-    except json.JSONDecodeError:
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+
+        # Remove markdown formatting if present
+        clean_text = re.sub(r"```json|```", "", text).strip()
+
+        return json.loads(clean_text)
+    except Exception as e:
         return {
             "error": "Could not parse response from Gemini",
-            "raw": text
+            "details": str(e),
+            "raw": text if 'text' in locals() else ''
         }

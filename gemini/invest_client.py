@@ -1,18 +1,22 @@
 import os
 import google.generativeai as genai
-from dotenv import load_dotenv
 import json
 import re
 
-load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    raise ValueError("❌ GEMINI_API_KEY not set in environment variables.")
 
-model = genai.GenerativeModel("gemini-2.0-flash")
+genai.configure(api_key=api_key)
+
+model = genai.GenerativeModel("models/gemini-2.0-flash")
+
+
 async def recommend_investment(amount: int, riskLevel: str) -> dict:
     prompt = (
-        f"Suggest a suitable investment scheme for a woman who can invest ₹{amount} monthly "
-        f"with a {riskLevel} risk appetite.\n\n"
-        f"Respond ONLY in this exact JSON format:\n"
+        f"A woman can invest ₹{amount} monthly and has a {riskLevel} risk appetite.\n"
+        f"Suggest one suitable investment scheme.\n"
+        f"Respond ONLY in this JSON format:\n\n"
         f"{{\n"
         f"  \"id\": \"...\",\n"
         f"  \"name\": \"...\",\n"
@@ -29,11 +33,16 @@ async def recommend_investment(amount: int, riskLevel: str) -> dict:
 
     try:
         response = model.generate_content(prompt)
-        # print("🔍 RAW RESPONSE:", response.text) 
         text = response.text.strip()
+
+        # Strip any ```json or ``` if Gemini adds formatting
         clean_text = re.sub(r"```json|```", "", text).strip()
 
         return json.loads(clean_text)
+
     except Exception as e:
-        print("❌ ERROR:", str(e))
-        return {"error": "Gemini failed", "details": str(e)}
+        return {
+            "error": "Could not parse Gemini response",
+            "details": str(e),
+            "raw": text if 'text' in locals() else ''
+        }

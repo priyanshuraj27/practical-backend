@@ -1,14 +1,19 @@
 import os
 import google.generativeai as genai
-from dotenv import load_dotenv
 import json
 import re
 
-load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+api_key = os.getenv("GEMINI_API_KEY")
 
+if not api_key:
+    raise ValueError("❌ Environment variable GEMINI_API_KEY not set!")
+
+genai.configure(api_key=api_key)
+
+# Gemini model instance
 model = genai.GenerativeModel(model_name="models/gemini-2.0-flash")
 
+# Generate saving plan from Gemini
 async def generate_saving_plan(goal: str, targetAmount: int, durationMonths: int) -> dict:
     prompt = (
         f"A woman wants to save ₹{targetAmount} in {durationMonths} months for the goal: \"{goal}\".\n"
@@ -42,7 +47,6 @@ async def generate_saving_plan(goal: str, targetAmount: int, durationMonths: int
 
     try:
         response = model.generate_content(prompt)
-        # print("🔍 RAW RESPONSE:", response.text)
         text = response.text.strip()
         clean_text = re.sub(r"```json|```", "", text).strip()
         return json.loads(clean_text)
